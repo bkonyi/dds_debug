@@ -1,0 +1,21 @@
+{
+  "configVersion": 2,
+  "packages": [
+    {
+      "name": "package_with_extensions",
+      "rootUri": "../../package_with_extensions",
+      "packageUri": "lib/",
+      "languageVersion": "3.0"
+    },
+    {
+      "name": "empty_dart_app",
+      "rootUri": "../",
+      "packageUri": "lib/",
+      "languageVersion": "3.0"
+    }
+  ],
+  "generated": "2024-09-25T20:43:29.492430Z",
+  "generator": "pub",
+  "generatorVersion": "3.5.3",
+  "pubCache": "file:///Users/bkonyi/.pub-cache"
+}

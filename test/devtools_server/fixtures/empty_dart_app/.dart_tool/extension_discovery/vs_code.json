@@ -1,0 +1,1 @@
+{"version":2,"entries":[{"package":"package_with_extensions","rootUri":"../../package_with_extensions/","packageUri":"lib/","config":{"a":"b"}},{"package":"empty_dart_app","rootUri":"../","packageUri":"lib/"}]}
