@@ -18,15 +18,8 @@ Uri _getDevToolsAssetPath() {
   final fullSdk = dartDir.endsWith('bin');
   return Uri.file(
     fullSdk
-        ? path.absolute(
-            dartDir,
-            'resources',
-            'devtools',
-          )
-        : path.absolute(
-            dartDir,
-            'devtools',
-          ),
+        ? path.absolute(dartDir, 'resources', 'devtools')
+        : path.absolute(dartDir, 'devtools'),
   );
 }
 
@@ -53,6 +46,7 @@ ${argParser.usage}
   final remoteVmServiceUri = Uri.parse(
     argResults[DartDevelopmentServiceOptions.vmServiceUriOption],
   );
+  print('[DDS CLI Entrypoint] remoteVmServiceUri: $remoteVmServiceUri');
   bool doesVmServiceAddressResolveToIpv4Address = false;
   try {
     final addresses = await InternetAddress.lookup(remoteVmServiceUri.host);
@@ -75,6 +69,8 @@ ${argParser.usage}
   // address.
   final bindAddress =
       argResults[DartDevelopmentServiceOptions.bindAddressOption];
+  print('[DDS CLI Entrypoint] bindAddress: $bindAddress');
+
   bool doesBindAddressResolveToIpv4Address = false;
   try {
     final addresses = await InternetAddress.lookup(bindAddress);
@@ -89,18 +85,19 @@ ${argParser.usage}
   }
 
   final portString = argResults[DartDevelopmentServiceOptions.bindPortOption];
+  print('[DDS CLI Entrypoint] bindPort: $portString');
+
   int port;
   try {
     port = int.parse(portString);
+    print('[DDS CLI Entrypoint] parsed bindPort: $port');
   } on FormatException catch (e, st) {
     writeErrorResponse('Invalid port: $portString', st);
     return;
   }
-  final serviceUri = Uri(
-    scheme: 'http',
-    host: bindAddress,
-    port: port,
-  );
+  final serviceUri = Uri(scheme: 'http', host: bindAddress, port: port);
+  print('[DDS CLI Entrypoint] serviceUri: $serviceUri');
+
   final disableServiceAuthCodes =
       argResults[DartDevelopmentServiceOptions.disableServiceAuthCodesFlag];
 
@@ -112,6 +109,8 @@ ${argParser.usage}
   final devToolsServerAddress = devToolsServerAddressStr == null
       ? null
       : Uri.parse(devToolsServerAddressStr);
+  print('[DDS CLI Entrypoint] devToolsServerAddress: $devToolsServerAddress');
+
   if (serveDevTools) {
     devToolsBuildDirectory = _getDevToolsAssetPath();
   }
@@ -132,7 +131,8 @@ ${argParser.usage}
       enableAuthCodes: !disableServiceAuthCodes,
       // Only use IPv6 to serve DDS if either the remote VM Service address or
       // the bind address cannot be resolved to an IPv4 address.
-      ipv6: !doesVmServiceAddressResolveToIpv4Address ||
+      ipv6:
+          !doesVmServiceAddressResolveToIpv4Address ||
           !doesBindAddressResolveToIpv4Address,
       devToolsConfiguration: serveDevTools && devToolsBuildDirectory != null
           ? DevToolsConfiguration(
@@ -146,17 +146,19 @@ ${argParser.usage}
       uriConverter: uriConverter,
     );
     final dtdInfo = dds.hostedDartToolingDaemon;
-    stderr.write(json.encode({
-      'state': 'started',
-      'ddsUri': dds.uri.toString(),
-      if (dds.devToolsUri != null) 'devToolsUri': dds.devToolsUri.toString(),
-      if (dtdInfo != null)
-        'dtd': {
-          // For DDS-hosted DTD, there's only ever a local URI since there
-          // is no mechanism for exposing URIs.
-          'uri': dtdInfo.localUri.toString(),
-        },
-    }));
+    stderr.write(
+      json.encode({
+        'state': 'started',
+        'ddsUri': dds.uri.toString(),
+        if (dds.devToolsUri != null) 'devToolsUri': dds.devToolsUri.toString(),
+        if (dtdInfo != null)
+          'dtd': {
+            // For DDS-hosted DTD, there's only ever a local URI since there
+            // is no mechanism for exposing URIs.
+            'uri': dtdInfo.localUri.toString(),
+          },
+      }),
+    );
   } catch (e, st) {
     writeErrorResponse(e, st);
   } finally {
@@ -167,10 +169,13 @@ ${argParser.usage}
 }
 
 void writeErrorResponse(Object e, StackTrace st) {
-  stderr.write(json.encode({
-    'state': 'error',
-    'error': '$e',
-    'stacktrace': '$st',
-    if (e is DartDevelopmentServiceException) 'ddsExceptionDetails': e.toJson(),
-  }));
+  stderr.write(
+    json.encode({
+      'state': 'error',
+      'error': '$e',
+      'stacktrace': '$st',
+      if (e is DartDevelopmentServiceException)
+        'ddsExceptionDetails': e.toJson(),
+    }),
+  );
 }

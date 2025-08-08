@@ -48,7 +48,9 @@ PeerBuilder peerBuilder = _defaultPeerBuilder;
 WebSocketBuilder webSocketBuilder = _defaultWebSocketBuilder;
 
 Future<json_rpc.Peer> _defaultPeerBuilder(
-    WebSocketChannel ws, dynamic streamManager) async {
+  WebSocketChannel ws,
+  dynamic streamManager,
+) async {
   return BinaryCompatiblePeer(ws, streamManager);
 }
 
@@ -75,16 +77,27 @@ class DartDevelopmentServiceImpl implements DartDevelopmentService {
     _packageUriConverter = PackageUriConverter(this);
     _dapHandler = DapHandler(this);
     _authCode = _authCodesEnabled ? _makeAuthToken() : '';
+    print(
+      '[DartDevelopmentServiceImpl] _remoteVmServiceUri: $_remoteVmServiceUri',
+    );
+    print('[DartDevelopmentServiceImpl] _uri: $remoteVmServiceUri');
   }
 
   Future<void> startService() async {
     DartDevelopmentServiceException? error;
     // TODO(bkonyi): throw if we've already shutdown.
     // Establish the connection to the VM service.
+    print(
+      '[DartDevelopmentServiceImpl.startService] remoteVmServiceUri: $remoteVmServiceUri',
+    );
+
     _vmServiceSocket = webSocketBuilder(remoteVmServiceWsUri);
     try {
       await _vmServiceSocket.ready;
-    } on WebSocketChannelException catch (e) {
+    } on WebSocketChannelException catch (e, st) {
+      print(
+        '[DartDevelopmentServiceImpl.startService] WebSocketChannelException: $e\n\nStackTrace:\n$st\n',
+      );
       throw DartDevelopmentServiceException.connectionIssue(e.toString());
     }
 
@@ -171,10 +184,11 @@ class DartDevelopmentServiceImpl implements DartDevelopmentService {
     // depending on the value of [_ipv6].
     final hostArg = uri?.host == 'localhost'
         ? (_ipv6 ? InternetAddress.loopbackIPv6 : InternetAddress.loopbackIPv4)
-            .host
+              .host
         : uri?.host;
     // The host on which DDS will be started.
-    final host = hostArg ??
+    final host =
+        hostArg ??
         (_ipv6 ? InternetAddress.loopbackIPv6 : InternetAddress.loopbackIPv4)
             .host;
     var port = uri?.port ?? 0;
@@ -190,9 +204,12 @@ class DartDevelopmentServiceImpl implements DartDevelopmentService {
     }
     pipeline = pipeline.addMiddleware(_authCodeMiddleware);
     pipeline = pipeline.addMiddleware(
-        createMiddleware(errorHandler: (Object error, StackTrace st) {
-      return Response.internalServerError(body: error.toString());
-    }));
+      createMiddleware(
+        errorHandler: (Object error, StackTrace st) {
+          return Response.internalServerError(body: error.toString());
+        },
+      ),
+    );
 
     if (_devToolsConfiguration?.enable ?? false) {
       // If we are enabling DevTools in DDS, then we also need to start the Dart
@@ -331,29 +348,30 @@ class DartDevelopmentServiceImpl implements DartDevelopmentService {
   /// authentication code is not the first element of the request's path.
   /// Otherwise, the request is forwarded to the first handler.
   Handler _authCodeMiddleware(Handler innerHandler) => (Request request) {
-        if (_authCodesEnabled) {
-          final forbidden =
-              Response.forbidden('missing or invalid authentication code');
-          final pathSegments = request.url.pathSegments;
-          if (pathSegments.isEmpty) {
-            return forbidden;
-          }
-          final authToken = pathSegments[0];
-          if (authToken != authCode) {
-            return forbidden;
-          }
-          // Creates a new request with the authentication code stripped from
-          // the request URI. This method doesn't behave as you might expect.
-          // Calling request.change(path: authToken) has the effect of changing
-          // the request's handler path from '/' to '/$authToken/' while also
-          // changing the request's url from '$authToken/restofpath/' to
-          // 'restofpath/'. The handler path is only used by shelf, so this
-          // operation has the effect of stripping the authentication code from
-          // the request.
-          request = request.change(path: authToken);
-        }
-        return innerHandler(request);
-      };
+    if (_authCodesEnabled) {
+      final forbidden = Response.forbidden(
+        'missing or invalid authentication code',
+      );
+      final pathSegments = request.url.pathSegments;
+      if (pathSegments.isEmpty) {
+        return forbidden;
+      }
+      final authToken = pathSegments[0];
+      if (authToken != authCode) {
+        return forbidden;
+      }
+      // Creates a new request with the authentication code stripped from
+      // the request URI. This method doesn't behave as you might expect.
+      // Calling request.change(path: authToken) has the effect of changing
+      // the request's handler path from '/' to '/$authToken/' while also
+      // changing the request's url from '$authToken/restofpath/' to
+      // 'restofpath/'. The handler path is only used by shelf, so this
+      // operation has the effect of stripping the authentication code from
+      // the request.
+      request = request.change(path: authToken);
+    }
+    return innerHandler(request);
+  };
 
   // Attempt to upgrade HTTP requests to a websocket before processing them as
   // standard HTTP requests. The websocket handler will fail quickly if the
@@ -368,13 +386,13 @@ class DartDevelopmentServiceImpl implements DartDevelopmentService {
   // Note: the WebSocketChannel type below is needed for compatibility with
   // package:shelf_web_socket v2.
   Handler _webSocketHandler() => webSocketHandler((WebSocketChannel ws, _) {
-        final client = DartDevelopmentServiceClient.fromWebSocket(
-          this,
-          ws,
-          vmServiceClient,
-        );
-        clientManager.addClient(client);
-      });
+    final client = DartDevelopmentServiceClient.fromWebSocket(
+      this,
+      ws,
+      vmServiceClient,
+    );
+    clientManager.addClient(client);
+  });
 
   Handler _sseHandler() {
     final handler = SseHandler(
@@ -405,15 +423,16 @@ class DartDevelopmentServiceImpl implements DartDevelopmentService {
       if (existingDevToolsAddress == null) {
         // If DDS is serving DevTools, install the DevTools handlers and
         // forward any unhandled HTTP requests to the VM service.
-        final String buildDir =
-            _devToolsConfiguration.customBuildDirectoryPath.toFilePath();
+        final String buildDir = _devToolsConfiguration.customBuildDirectoryPath
+            .toFilePath();
         return defaultHandler(
-          dds: this,
-          buildDir: buildDir,
-          notFoundHandler: notFoundHandler,
-          dtd: _hostedDartToolingDaemon,
-          devtoolsExtensionsManager: ExtensionsManager(),
-        ) as FutureOr<Response> Function(Request);
+              dds: this,
+              buildDir: buildDir,
+              notFoundHandler: notFoundHandler,
+              dtd: _hostedDartToolingDaemon,
+              devtoolsExtensionsManager: ExtensionsManager(),
+            )
+            as FutureOr<Response> Function(Request);
       }
       // Otherwise, set the DevTools URI to point to the externally hosted
       // DevTools instance.
@@ -446,12 +465,14 @@ class DartDevelopmentServiceImpl implements DartDevelopmentService {
   List<String> _cleanupPathSegments(Uri uri) {
     final pathSegments = <String>[];
     if (uri.pathSegments.isNotEmpty) {
-      pathSegments.addAll(uri.pathSegments.where(
-        // Strip out the empty string that appears at the end of path segments.
-        // Empty string elements will result in an extra '/' being added to the
-        // URI.
-        (s) => s.isNotEmpty,
-      ));
+      pathSegments.addAll(
+        uri.pathSegments.where(
+          // Strip out the empty string that appears at the end of path segments.
+          // Empty string elements will result in an extra '/' being added to the
+          // URI.
+          (s) => s.isNotEmpty,
+        ),
+      );
     }
     return pathSegments;
   }
@@ -481,9 +502,7 @@ class DartDevelopmentServiceImpl implements DartDevelopmentService {
       host: uri!.host,
       port: uri.port,
       pathSegments: [
-        ...uri.pathSegments.where(
-          (e) => e.isNotEmpty,
-        ),
+        ...uri.pathSegments.where((e) => e.isNotEmpty),
         'devtools',
         // Includes a trailing slash by adding an empty string to the end of the
         // path segments list.
@@ -524,8 +543,9 @@ class DartDevelopmentServiceImpl implements DartDevelopmentService {
 
   @override
   Uri? get devToolsUri {
-    _devToolsUri ??=
-        _devToolsConfiguration?.enable ?? false ? toDevTools(_uri) : null;
+    _devToolsUri ??= _devToolsConfiguration?.enable ?? false
+        ? toDevTools(_uri)
+        : null;
     return _devToolsUri;
   }
 
